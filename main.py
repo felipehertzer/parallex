@@ -1,16 +1,14 @@
-# This is a sample Python script.
+import asyncio
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+from parallex.models.parallex_callable_input import ParallexCallableOutput
+from parallex.parallex import parallex
 
+def example_post_process(output: ParallexCallableOutput) -> None:
+    print(f"Post-processing file: {output.file_name}")
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    asyncio.run(parallex(
+        pdf_source_url="https://summed-public.s3.us-west-2.amazonaws.com/medicare_plan_docs/2025/H0028-007-000/EOC.pdf",
+        post_process_callable=example_post_process,
+    ))
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
