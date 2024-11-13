@@ -8,7 +8,7 @@ from parallex.models.batch_file import BatchFile
 from parallex.models.image_file import ImageFile
 
 
-def upload_image_for_processing(client: OpenAIClient, image_file: ImageFile, temp_directory: str):
+async def upload_image_for_processing(client: OpenAIClient, image_file: ImageFile, temp_directory: str):
     with open(image_file.path, "rb") as image:
         base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
 
@@ -18,7 +18,7 @@ def upload_image_for_processing(client: OpenAIClient, image_file: ImageFile, tem
     with(open(upload_file_location, "w")) as jsonl_file:
         jsonl_file.write(json.dumps(jsonl) + "\n")
 
-    file_response = client.upload(upload_file_location)
+    file_response = await client.upload(upload_file_location)
     return BatchFile(
         id=file_response.id,
         name=file_response.filename,

@@ -1,6 +1,5 @@
 import asyncio
 import tempfile
-import logging
 from typing import Callable
 
 from parallex.ai.batch_processor import wait_for_batch_completion, create_batch
@@ -11,11 +10,7 @@ from parallex.file_management.converter import convert_pdf_to_images
 from parallex.file_management.file_finder import add_file_to_temp_directory
 from parallex.models.parallex_callable_input import ParallexCallableOutput
 from parallex.models.parallex_ouput import ParallexOutput
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+from parallex.utils.logger import logger
 
 
 # TODO pdf_source_url: str change to be URL or path
@@ -37,7 +32,7 @@ async def parallex(
             temp_directory=temp_directory
         )
         trace_id = raw_file.trace_id
-        logging.info(f"inside parallex -- file_name: {raw_file.name}")
+        logger.info(f"inside parallex -- file_name: {raw_file.name}")
 
         # Convert PDF to image
         image_files = await convert_pdf_to_images(raw_file=raw_file, temp_directory=temp_directory)
@@ -56,7 +51,7 @@ async def parallex(
             batch_tasks.append(batch_task)
         batches = await asyncio.gather(*batch_tasks)
 
-        logging.info(f"batches done. total batches- {len(batches)} - {trace_id}")
+        logger.info(f"batches done. total batches- {len(batches)} - {trace_id}")
 
         page_tasks = []
         for batch in batches:
@@ -66,7 +61,7 @@ async def parallex(
             page_tasks.append(page_task)
         pages = await asyncio.gather(*page_tasks)
 
-        logging.info(f"pages done. total pages- {len(pages)} - {trace_id}")
+        logger.info(f"pages done. total pages- {len(pages)} - {trace_id}")
 
         sorted_page_responses = sorted(pages, key=lambda x: x.page_number)
         # TODO add combined version of MD to output
@@ -84,30 +79,30 @@ async def parallex(
 async def _wait_and_create_pages(batch, client, semaphore):
     async with semaphore:
         # batch_id = "batch_7b219b17-3b1f-4279-9ce3-cd05184f482d"
-        logging.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
+        logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
         output_file_id = await wait_for_batch_completion(client=client, batch_id=batch.id)
-        logging.info(f"batch completed - {batch.id} - {batch.trace_id}")
+        logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
         # output_file_id = "file-a940ba9f-48b0-4139-8266-3df3a7b982a5"
-        page_response = process_output(
+        page_response = await process_output(
             client=client,
             output_file_id=output_file_id,
             page_number=batch.page_number
         )
-        logging.info(f"page_response: {page_response.page_number}")
+        logger.info(f"page_response: {page_response.page_number}")
         return page_response
 
 
 async def _create_image_and_batch_job(image_file, client, temp_directory, trace_id, semaphore):
     async with semaphore:
-        logging.info(f"uploading image - {image_file.page_number} - {trace_id}")
-        batch_file = upload_image_for_processing(
+        logger.info(f"uploading image - {image_file.page_number} - {trace_id}")
+        batch_file = await upload_image_for_processing(
             client=client,
             image_file=image_file,
             temp_directory=temp_directory
         )
-        logging.info(f"finished uploading image - {image_file.page_number} - {trace_id}")
-        logging.info(f"creating batch for image - {image_file.page_number} - {trace_id}")
+        logger.info(f"finished uploading image - {image_file.page_number} - {trace_id}")
+        logger.info(f"creating batch for image - {image_file.page_number} - {trace_id}")
         batch = await create_batch(client=client, file_id=batch_file.id, trace_id=trace_id, page_number=image_file.page_number)
-        logging.info(f"finished batch for image - {image_file.page_number} - {trace_id}")
+        logger.info(f"finished batch for image - {image_file.page_number} - {trace_id}")
 
         return batch

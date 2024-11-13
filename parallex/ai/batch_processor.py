@@ -15,7 +15,7 @@ async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID, page_
 
     for attempt in range(max_retries):
         try:
-            batch_response = client.create_batch(upload_file_id=file_id)
+            batch_response = await client.create_batch(upload_file_id=file_id)
             batch = build_batch(open_ai_batch=batch_response, trace_id=trace_id, page_number=page_number)
             return batch  # Return batch if successful
 
@@ -31,7 +31,7 @@ async def wait_for_batch_completion(client: OpenAIClient, batch_id) -> str:
     delay = 5
     while status not in ("completed", "failed", "canceled"):
         await asyncio.sleep(delay)
-        batch_response = client.retrieve_batch(batch_id)
+        batch_response = await client.retrieve_batch(batch_id)
         status = batch_response.status
         if status == "completed":
             return batch_response.output_file_id
