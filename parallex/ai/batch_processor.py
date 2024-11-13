@@ -27,14 +27,13 @@ async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID, page_
 
 
 async def wait_for_batch_completion(client: OpenAIClient, batch_id) -> str:
-    # TODO pass in UploadBatch and mutate?
-    # How to process? FIFO?
-    # TODO handle "failed", "canceled"
-    # There will be a error_file_id for errored jobs
     status = "validating"
+    delay = 5
     while status not in ("completed", "failed", "canceled"):
-        time.sleep(5)
+        await asyncio.sleep(delay)
         batch_response = client.retrieve_batch(batch_id)
         status = batch_response.status
         if status == "completed":
             return batch_response.output_file_id
+        else:
+            delay = 5 * 60

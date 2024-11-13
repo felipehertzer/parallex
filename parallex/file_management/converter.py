@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from pdf2image import convert_from_path
 
@@ -26,4 +27,4 @@ async def convert_pdf_to_images(raw_file: RawFile, temp_directory: str) -> list[
         return [ImageFile(path=path, trace_id=raw_file.trace_id, given_file_name=raw_file.given_name, page_number=(i + 1)) for i, path in
                 enumerate(image_paths)]
     except Exception as err:
-        print(f"Error converting PDF to images: {err}")
+        logging.error(f"Error converting PDF to images: {err}")

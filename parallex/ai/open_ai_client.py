@@ -5,7 +5,6 @@ from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types import FileObject, Batch
 
 
-# TODO init based on model not just azure
 # Exceptions for missing keys, etc
 class OpenAIClient:
     def __init__(self, model: str):
