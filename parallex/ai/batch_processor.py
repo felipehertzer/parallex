@@ -5,10 +5,10 @@ from uuid import UUID
 from openai import BadRequestError
 
 from parallex.ai.open_ai_client import OpenAIClient
-from parallex.models.upload_batch import build_batch
+from parallex.models.upload_batch import build_batch, UploadBatch
 
 
-async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID):
+async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID) -> UploadBatch:
     max_retries = 5
     backoff_delay = 5
 
@@ -25,7 +25,7 @@ async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID):
             backoff_delay *= 2
 
 
-def process_batch(client: OpenAIClient, batch_id) -> str:
+async def wait_for_batch_completion(client: OpenAIClient, batch_id) -> str:
     # TODO pass in UploadBatch and mutate?
     # How to process? FIFO?
     # TODO handle "failed", "canceled"

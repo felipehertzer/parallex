@@ -5,18 +5,15 @@ import os
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.file_management.utils import file_in_temp_dir
 from parallex.models.batch_file import BatchFile
-from parallex.models.raw_file import RawFile
+from parallex.models.image_file import ImageFile
 
 
-def upload_image_for_processing(client: OpenAIClient, raw_file: RawFile, temp_directory: str):
-    image_path = os.path.join(os.path.dirname(__file__), "../pdf_screenshot.png")
-    image_path = os.path.abspath(image_path)
+def upload_image_for_processing(client: OpenAIClient, image_file: ImageFile, temp_directory: str):
+    with open(image_file.path, "rb") as image:
+        base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
 
-    with open(image_path, "rb") as image_file:
-        base64_encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-    jsonl = _jsonl_format(raw_file, base64_encoded_image)
-
-    upload_file_name = f"{raw_file.trace_id}.jsonl"
+    upload_file_name = f"{image_file.trace_id}--page--{image_file.page_number}.jsonl"
+    jsonl = _jsonl_format(upload_file_name, base64_encoded_image)
     upload_file_location = file_in_temp_dir(directory=temp_directory, file_name=upload_file_name)
     with(open(upload_file_location, "w")) as jsonl_file:
         jsonl_file.write(json.dumps(jsonl) + "\n")
@@ -27,14 +24,14 @@ def upload_image_for_processing(client: OpenAIClient, raw_file: RawFile, temp_di
         name=file_response.filename,
         purpose=file_response.purpose,
         status=file_response.status,
-        trace_id=raw_file.trace_id,
+        trace_id=image_file.trace_id,
     )
 
 
-# TODO fine tune this
-def _jsonl_format(file, encoded_image):
+# TODO fine tune this and allow custom _prompt_text
+def _jsonl_format(upload_file_name: str, encoded_image: str):
     return {
-        "custom_id": file.name,
+        "custom_id": upload_file_name,
         "method": "POST",
         "url": "/chat/completions",
         "body": {

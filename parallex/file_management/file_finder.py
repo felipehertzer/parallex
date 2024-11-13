@@ -21,8 +21,14 @@ async def add_file_to_temp_directory(pdf_source_url: str, temp_directory: str) -
                 async for chunk in response.aiter_bytes():
                     file.write(chunk)
 
-            print(file_trace_id)
-            return RawFile(name=file_name, path=path, content_type=content_type, trace_id=file_trace_id)
+            return RawFile(
+                name=file_name,
+                path=path,
+                content_type=content_type,
+                given_name=given_file_name,
+                pdf_source_url=pdf_source_url,
+                trace_id=file_trace_id
+            )
 
 
 def _determine_file_name(given_file_name: str, file_trace_id, content_type: str):
@@ -31,4 +37,4 @@ def _determine_file_name(given_file_name: str, file_trace_id, content_type: str)
     name, extension = given_file_name.split('.')
     if "application/pdf" not in content_type:
         raise ValueError("Content-Type must be application/pdf")
-    return f"{name}--{file_trace_id}.pdf"
+    return f"{file_trace_id}.{extension}"
