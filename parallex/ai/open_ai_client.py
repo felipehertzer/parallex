@@ -29,3 +29,6 @@ class OpenAIClient:
             endpoint="/chat/completions", # TODO this could be configured see _jsonl_format
             completion_window="24h",
         )
+
+    def retrieve_batch(self, batch_id: str) -> Batch:
+        return self._client.batches.retrieve(batch_id)

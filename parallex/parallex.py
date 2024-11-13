@@ -1,6 +1,7 @@
 import tempfile
 from typing import Callable
 
+from parallex.ai.batch_processor import process_batch
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.ai.uploader import upload_image_for_processing
 from parallex.file_management.file_finder import add_file_to_temp_directory
@@ -42,9 +43,14 @@ async def parallex(
         # print(batch.model_dump())
         # batch_id = batch.id
 
-
+        #Track; batch; job; progress
         # Do stuff with batch using batch_7b219b17-3b1f-4279-9ce3-cd05184f482d
-        batch_id = "batch_7b219b17-3b1f-4279-9ce3-cd05184f482d"
+        # batch_id = "batch_7b219b17-3b1f-4279-9ce3-cd05184f482d"
+        # output_file_id = process_batch(client=open_ai_client, batch_id=batch_id)
+        # print(output_file_id)
+
+        # Take output and do thing
+        output_file_id = "file-a940ba9f-48b0-4139-8266-3df3a7b982a5"
 
 
 
