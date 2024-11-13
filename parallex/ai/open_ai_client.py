@@ -34,5 +34,8 @@ class OpenAIClient:
     def retrieve_batch(self, batch_id: str) -> Batch:
         return self._client.batches.retrieve(batch_id)
 
+    def destroy_batch(self, batch_id: str) -> Batch:
+        return self._client.batches._delete(batch_id)
+
     def retrieve_file(self, file_id: str) -> HttpxBinaryResponseContent:
         return self._client.files.content(file_id)
