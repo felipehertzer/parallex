@@ -7,6 +7,7 @@ from parallex.models.page_response import PageResponse
 async def process_output(
     client: OpenAIClient, output_file_id: str, page_number: int
 ) -> PageResponse:
+    """Gets content from completed Batch to create PageResponse with created markdown"""
     file_response = await client.retrieve_file(output_file_id)
     raw_responses = file_response.text.strip().split("\n")
     # TODO  There should just be one response right?

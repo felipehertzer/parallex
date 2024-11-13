@@ -5,7 +5,7 @@ from pydantic.fields import Field
 
 
 class ImageFile(BaseModel):
-    path: str
-    page_number: int
-    given_file_name: str
-    trace_id: UUID
+    path: str = Field(description="Path to the image in temp directory")
+    page_number: int = Field(description="Associated page of the PDF")
+    given_file_name: str = Field(description="Name of the given file")
+    trace_id: UUID = Field(description="Unique trace for each file")

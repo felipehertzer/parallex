@@ -25,7 +25,7 @@ class OpenAIClient:
     async def create_batch(self, upload_file_id: str) -> Batch:
         return await self._client.batches.create(
             input_file_id=upload_file_id,
-            endpoint="/chat/completions",  # TODO this could be configured see _jsonl_format
+            endpoint="/chat/completions",
             completion_window="24h",
         )
 

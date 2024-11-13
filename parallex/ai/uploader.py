@@ -9,8 +9,11 @@ from parallex.models.image_file import ImageFile
 
 
 async def upload_image_for_processing(
-    client: OpenAIClient, image_file: ImageFile, temp_directory: str
+    client: OpenAIClient,
+    image_file: ImageFile,
+    temp_directory: str,
 ):
+    """Base64 encodes image, converts to expected jsonl format and uploads to create a Batch"""
     with open(image_file.path, "rb") as image:
         base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
 

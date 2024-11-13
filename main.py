@@ -2,7 +2,7 @@ import asyncio
 import os
 import time
 
-from parallex.models.parallex_callable_input import ParallexCallableOutput
+from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.parallex import parallex
 
 os.environ["AZURE_OPENAI_API_KEY"] = "key"

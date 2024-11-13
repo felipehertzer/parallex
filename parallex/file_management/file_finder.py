@@ -7,10 +7,10 @@ from parallex.models.raw_file import RawFile
 
 
 # TODO get from URL or from file system
-# TODO naming prefix passed along to this method to give user meaning to batches
 async def add_file_to_temp_directory(
     pdf_source_url: str, temp_directory: str
 ) -> RawFile:
+    """Downloads file and adds to temp directory"""
     given_file_name = pdf_source_url.split("/")[-1]
     file_trace_id = uuid.uuid4()
     async with httpx.AsyncClient() as client:

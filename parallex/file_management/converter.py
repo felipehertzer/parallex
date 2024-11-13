@@ -10,7 +10,7 @@ from parallex.utils.logger import logger
 async def convert_pdf_to_images(
     raw_file: RawFile, temp_directory: str
 ) -> list[ImageFile]:
-    """Converts a PDF file to a series of images in the temp_dir. Returns a list of image paths in page order."""
+    """Converts a PDF file to a series of images in the temp_directory. Returns a list ImageFile objects."""
     options = {
         "pdf_path": raw_file.path,
         "output_folder": temp_directory,
