@@ -26,9 +26,10 @@ class UploadBatch(BaseModel):
     error_file_id: Optional[str] = Field(None, description="thing")
     errors: Optional[Errors] = Field(None, description="thing")
 
+
 def build_batch(open_ai_batch: Batch, trace_id: UUID, page_number: int) -> UploadBatch:
     fields = UploadBatch.model_fields
     input_fields = {key: getattr(open_ai_batch, key, None) for key in fields}
-    input_fields['trace_id'] = trace_id
-    input_fields['page_number'] = page_number
+    input_fields["trace_id"] = trace_id
+    input_fields["page_number"] = page_number
     return UploadBatch(**input_fields)

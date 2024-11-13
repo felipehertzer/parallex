@@ -9,14 +9,18 @@ from parallex.models.upload_batch import build_batch, UploadBatch
 
 
 # TODO do better with backoff
-async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID, page_number: int) -> UploadBatch:
+async def create_batch(
+    client: OpenAIClient, file_id: str, trace_id: UUID, page_number: int
+) -> UploadBatch:
     max_retries = 5
     backoff_delay = 5
 
     for attempt in range(max_retries):
         try:
             batch_response = await client.create_batch(upload_file_id=file_id)
-            batch = build_batch(open_ai_batch=batch_response, trace_id=trace_id, page_number=page_number)
+            batch = build_batch(
+                open_ai_batch=batch_response, trace_id=trace_id, page_number=page_number
+            )
             return batch  # Return batch if successful
 
         except BadRequestError as e:

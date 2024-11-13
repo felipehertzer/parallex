@@ -8,14 +8,18 @@ from parallex.models.batch_file import BatchFile
 from parallex.models.image_file import ImageFile
 
 
-async def upload_image_for_processing(client: OpenAIClient, image_file: ImageFile, temp_directory: str):
+async def upload_image_for_processing(
+    client: OpenAIClient, image_file: ImageFile, temp_directory: str
+):
     with open(image_file.path, "rb") as image:
         base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
 
     upload_file_name = f"{image_file.trace_id}--page--{image_file.page_number}.jsonl"
     jsonl = _jsonl_format(upload_file_name, base64_encoded_image)
-    upload_file_location = file_in_temp_dir(directory=temp_directory, file_name=upload_file_name)
-    with(open(upload_file_location, "w")) as jsonl_file:
+    upload_file_location = file_in_temp_dir(
+        directory=temp_directory, file_name=upload_file_name
+    )
+    with open(upload_file_location, "w") as jsonl_file:
         jsonl_file.write(json.dumps(jsonl) + "\n")
 
     file_response = await client.upload(upload_file_location)
@@ -40,21 +44,18 @@ def _jsonl_format(upload_file_name: str, encoded_image: str):
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": _prompt_text()
-                        },
+                        {"type": "text", "text": _prompt_text()},
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                        }
-                    ]
+                            },
+                        },
+                    ],
                 }
             ],
-            "max_tokens": 2000
-        }
+            "max_tokens": 2000,
+        },
     }
 
 

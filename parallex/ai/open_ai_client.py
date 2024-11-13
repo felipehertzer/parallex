@@ -13,14 +13,13 @@ class OpenAIClient:
         self._client = AsyncAzureOpenAI(
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+            api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
         )
 
     # TODO take in ImageFile
     async def upload(self, file_path: str) -> FileObject:
         return await self._client.files.create(
-            file=open(file_path, "rb"),
-            purpose="batch"
+            file=open(file_path, "rb"), purpose="batch"
         )
 
     async def create_batch(self, upload_file_id: str) -> Batch:

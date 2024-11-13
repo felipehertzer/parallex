@@ -7,7 +7,9 @@ from parallex.models.raw_file import RawFile
 from parallex.utils.logger import logger
 
 
-async def convert_pdf_to_images(raw_file: RawFile, temp_directory: str) -> list[ImageFile]:
+async def convert_pdf_to_images(
+    raw_file: RawFile, temp_directory: str
+) -> list[ImageFile]:
     """Converts a PDF file to a series of images in the temp_dir. Returns a list of image paths in page order."""
     options = {
         "pdf_path": raw_file.path,
@@ -21,10 +23,15 @@ async def convert_pdf_to_images(raw_file: RawFile, temp_directory: str) -> list[
     }
 
     try:
-        image_paths = await asyncio.to_thread(
-            convert_from_path, **options
-        )
-        return [ImageFile(path=path, trace_id=raw_file.trace_id, given_file_name=raw_file.given_name, page_number=(i + 1)) for i, path in
-                enumerate(image_paths)]
+        image_paths = await asyncio.to_thread(convert_from_path, **options)
+        return [
+            ImageFile(
+                path=path,
+                trace_id=raw_file.trace_id,
+                given_file_name=raw_file.given_name,
+                page_number=(i + 1),
+            )
+            for i, path in enumerate(image_paths)
+        ]
     except Exception as err:
         logger.error(f"Error converting PDF to images: {err}")
