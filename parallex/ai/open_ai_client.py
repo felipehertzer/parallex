@@ -1,7 +1,7 @@
 import os
 
 from openai import AzureOpenAI
-from openai.types import FileObject
+from openai.types import FileObject, Batch
 
 
 # TODO init based on model not just azure
@@ -21,4 +21,11 @@ class OpenAIClient:
         return self._client.files.create(
             file=open(file_path, "rb"),
             purpose="batch"
+        )
+
+    def create_batch(self, upload_file_id: str) -> Batch:
+        return self._client.batches.create(
+            input_file_id=upload_file_id,
+            endpoint="/chat/completions", # TODO this could be configured see _jsonl_format
+            completion_window="24h",
         )
