@@ -1,13 +1,35 @@
+import asyncio
 import time
-import datetime
+from uuid import UUID
+
+from openai import BadRequestError
 
 from parallex.ai.open_ai_client import OpenAIClient
+from parallex.models.upload_batch import build_batch
+
+
+async def create_batch(client: OpenAIClient, file_id: str, trace_id: UUID):
+    max_retries = 5
+    backoff_delay = 5
+
+    for attempt in range(max_retries):
+        try:
+            batch_response = client.create_batch(upload_file_id=file_id)
+            batch = build_batch(batch_response, trace_id)
+            return batch  # Return batch if successful
+
+        except BadRequestError as e:
+            if attempt == max_retries - 1:
+                raise e
+            await asyncio.sleep(backoff_delay)
+            backoff_delay *= 2
 
 
 def process_batch(client: OpenAIClient, batch_id) -> str:
     # TODO pass in UploadBatch and mutate?
     # How to process? FIFO?
     # TODO handle "failed", "canceled"
+    # There will be a error_file_id for errored jobs
     status = "validating"
     while status not in ("completed", "failed", "canceled"):
         time.sleep(5)

@@ -1,6 +1,7 @@
 import os
 
 from openai import AzureOpenAI
+from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types import FileObject, Batch
 
 
@@ -32,3 +33,6 @@ class OpenAIClient:
 
     def retrieve_batch(self, batch_id: str) -> Batch:
         return self._client.batches.retrieve(batch_id)
+
+    def retrieve_file(self, file_id: str) -> HttpxBinaryResponseContent:
+        return self._client.files.content(file_id)

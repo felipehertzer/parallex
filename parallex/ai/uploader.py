@@ -23,7 +23,7 @@ def upload_image_for_processing(client: OpenAIClient, raw_file: RawFile, temp_di
 
     file_response = client.upload(upload_file_location)
     return BatchFile(
-        id= file_response.id,
+        id=file_response.id,
         name=file_response.filename,
         purpose=file_response.purpose,
         status=file_response.status,
@@ -45,7 +45,7 @@ def _jsonl_format(file, encoded_image):
                     "content": [
                         {
                             "type": "text",
-                            "text": "Describe this picture:"
+                            "text": _prompt_text()
                         },
                         {
                             "type": "image_url",
@@ -59,3 +59,13 @@ def _jsonl_format(file, encoded_image):
             "max_tokens": 2000
         }
     }
+
+
+def _prompt_text():
+    return """
+    Convert the following PDF page to markdown.
+    Return only the markdown with no explanation text.
+    Leave out any page numbers and redundant headers or footers.
+    Do not include any code blocks (e.g. "```markdown" or "```") in the response.
+    If unable to parse, return an empty string.
+    """
