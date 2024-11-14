@@ -6,6 +6,7 @@ from parallex.ai.open_ai_client import OpenAIClient
 from parallex.file_management.utils import file_in_temp_dir
 from parallex.models.batch_file import BatchFile
 from parallex.models.image_file import ImageFile
+from parallex.utils.constants import CUSTOM_ID_DELINEATOR
 
 MAX_FILE_SIZE = 150 * 1024 * 1024  # 150 MB in bytes
 
@@ -14,6 +15,7 @@ async def upload_images_for_processing(
     client: OpenAIClient,
     image_files: list[ImageFile],
     temp_directory: str,
+    prompt_text: str,
 ):
     """Base64 encodes image, converts to expected jsonl format and uploads"""
     trace_id = image_files[0].trace_id
@@ -24,9 +26,14 @@ async def upload_images_for_processing(
     )
 
     for image_file in image_files:
-        if os.path.exists(upload_file_location) and os.path.getsize(upload_file_location) > MAX_FILE_SIZE:
+        if (
+            os.path.exists(upload_file_location)
+            and os.path.getsize(upload_file_location) > MAX_FILE_SIZE
+        ):
             """When approaching upload file limit, upload and start new file"""
-            batch_file = await _create_batch_file(client, trace_id, upload_file_location)
+            batch_file = await _create_batch_file(
+                client, trace_id, upload_file_location
+            )
             batch_files.append(batch_file)
             current_index += 1
             upload_file_location = file_in_temp_dir(
@@ -36,8 +43,10 @@ async def upload_images_for_processing(
         with open(image_file.path, "rb") as image:
             base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
 
-        prompt_custom_id = f"{image_file.trace_id}--page--{image_file.page_number}.jsonl"
-        jsonl = _jsonl_format(prompt_custom_id, base64_encoded_image)
+        prompt_custom_id = (
+            f"{image_file.trace_id}{CUSTOM_ID_DELINEATOR}{image_file.page_number}.jsonl"
+        )
+        jsonl = _jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text)
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
@@ -56,10 +65,9 @@ async def _create_batch_file(client, trace_id, upload_file_location):
     )
 
 
-# TODO fine tune this and allow custom _prompt_text
-def _jsonl_format(upload_file_name: str, encoded_image: str):
+def _jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str):
     return {
-        "custom_id": upload_file_name,
+        "custom_id": prompt_custom_id,
         "method": "POST",
         "url": "/chat/completions",
         "body": {
@@ -68,7 +76,7 @@ def _jsonl_format(upload_file_name: str, encoded_image: str):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": _prompt_text()},
+                        {"type": "text", "text": prompt_text},
                         {
                             "type": "image_url",
                             "image_url": {
@@ -81,13 +89,3 @@ def _jsonl_format(upload_file_name: str, encoded_image: str):
             "max_tokens": 2000,
         },
     }
-
-
-def _prompt_text():
-    return """
-    Convert the following PDF page to markdown.
-    Return only the markdown with no explanation text.
-    Leave out any page numbers and redundant headers or footers.
-    Do not include any code blocks (e.g. "```markdown" or "```") in the response.
-    If unable to parse, return an empty string.
-    """

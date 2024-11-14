@@ -1,6 +1,6 @@
 import asyncio
 import tempfile
-from typing import Callable, Optional, final
+from typing import Callable, Optional
 from uuid import UUID
 
 from parallex.ai.batch_processor import wait_for_batch_completion, create_batch
@@ -12,6 +12,7 @@ from parallex.file_management.file_finder import add_file_to_temp_directory
 from parallex.models.image_file import ImageFile
 from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.models.upload_batch import UploadBatch
+from parallex.utils.constants import DEFAULT_PROMPT
 from parallex.utils.logger import logger, setup_logger
 
 
@@ -21,6 +22,7 @@ async def parallex(
     pdf_source_url: str,
     post_process_callable: Optional[Callable[..., None]] = None,
     concurrency: int = 20,
+    prompt_text: str = DEFAULT_PROMPT,
     log_level: str = "ERROR",
 ) -> ParallexCallableOutput:
     setup_logger(log_level)
@@ -36,7 +38,10 @@ async def parallex(
         )
 
         batch_files = await upload_images_for_processing(
-            client=open_ai_client, image_files=image_files, temp_directory=temp_directory
+            client=open_ai_client,
+            image_files=image_files,
+            temp_directory=temp_directory,
+            prompt_text=prompt_text,
         )
         start_batch_semaphore = asyncio.Semaphore(concurrency)
         start_batch_tasks = []
@@ -67,7 +72,7 @@ async def parallex(
         logger.debug(f"pages done. total pages- {len(pages)} - {trace_id}")
         sorted_pages = sorted(pages, key=lambda x: x.page_number)
 
-        # TODO add combined version of MD to output
+        # TODO add combined version of MD to output / save to file system
         callable_output = ParallexCallableOutput(
             file_name=raw_file.given_name,
             pdf_source_url=raw_file.pdf_source_url,
@@ -77,7 +82,6 @@ async def parallex(
         if post_process_callable is not None:
             post_process_callable(output=callable_output)
         return callable_output
-
 
 
 async def _wait_and_create_pages(
@@ -108,8 +112,6 @@ async def _create_images_and_batch_jobs(
 ):
     async with semaphore:
         batch = await create_batch(
-            client=client,
-            file_id=batch_file.id,
-            trace_id=trace_id
+            client=client, file_id=batch_file.id, trace_id=trace_id
         )
         return batch

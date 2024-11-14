@@ -2,6 +2,7 @@ import json
 
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.models.page_response import PageResponse
+from parallex.utils.constants import CUSTOM_ID_DELINEATOR
 
 
 async def process_output(
@@ -15,8 +16,10 @@ async def process_output(
     for raw_response in raw_responses:
         json_response = json.loads(raw_response)
         custom_id = json_response["custom_id"]
-        page_number = custom_id.split("--page--")[1].split(".")[0]
-        output_content = json_response["response"]["body"]["choices"][0]["message"]["content"]
+        page_number = custom_id.split(CUSTOM_ID_DELINEATOR)[1].split(".")[0]
+        output_content = json_response["response"]["body"]["choices"][0]["message"][
+            "content"
+        ]
         page = PageResponse(output_content=output_content, page_number=int(page_number))
         pages.append(page)
     return pages

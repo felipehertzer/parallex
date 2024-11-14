@@ -17,9 +17,7 @@ async def create_batch(
     for attempt in range(max_retries):
         try:
             batch_response = await client.create_batch(upload_file_id=file_id)
-            batch = build_batch(
-                open_ai_batch=batch_response, trace_id=trace_id
-            )
+            batch = build_batch(open_ai_batch=batch_response, trace_id=trace_id)
             return batch  # Return batch if successful
         except BadRequestError as e:
             if attempt == max_retries - 1:
