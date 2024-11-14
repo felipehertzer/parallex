@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "parallex"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Jeff Hostetler <jeff@summed.ai>", "Kevin Bao <kevin@summed.ai>"]
 readme = "README.md"
