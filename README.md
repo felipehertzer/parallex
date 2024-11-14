@@ -14,9 +14,12 @@ Parallex uses `graphicsmagick` for the conversion of PDF to images.
 brew install graphicsmagick
 ```
 
+### Installation
+```bash
+pip install parallex
+```
 
 ### Example usage
-
 ```python
 import os
 from parallex.models.parallex_callable_output import ParallexCallableOutput
