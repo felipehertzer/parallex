@@ -8,7 +8,7 @@ from parallex.models.upload_batch import build_batch, UploadBatch
 
 
 async def create_batch(
-    client: OpenAIClient, file_id: str, trace_id: UUID, page_number: int
+    client: OpenAIClient, file_id: str, trace_id: UUID
 ) -> UploadBatch:
     """Creates a Batch for the given file_id"""
     max_retries = 10
@@ -18,7 +18,7 @@ async def create_batch(
         try:
             batch_response = await client.create_batch(upload_file_id=file_id)
             batch = build_batch(
-                open_ai_batch=batch_response, trace_id=trace_id, page_number=page_number
+                open_ai_batch=batch_response, trace_id=trace_id
             )
             return batch  # Return batch if successful
         except BadRequestError as e:
@@ -37,8 +37,8 @@ async def wait_for_batch_completion(client: OpenAIClient, batch: UploadBatch) ->
         await asyncio.sleep(delay)
         batch_response = await client.retrieve_batch(batch.id)
         status = batch_response.status
+        batch.output_file_id = batch_response.output_file_id
+        batch.error_file_id = batch_response.error_file_id
+        delay = 30
         if status == "completed":
-            batch.output_file_id = batch_response.output_file_id
             return batch_response.output_file_id
-        else:
-            delay = 30

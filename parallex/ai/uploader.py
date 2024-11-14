@@ -7,31 +7,52 @@ from parallex.file_management.utils import file_in_temp_dir
 from parallex.models.batch_file import BatchFile
 from parallex.models.image_file import ImageFile
 
+MAX_FILE_SIZE = 150 * 1024 * 1024  # 150 MB in bytes
 
-async def upload_image_for_processing(
+
+async def upload_images_for_processing(
     client: OpenAIClient,
-    image_file: ImageFile,
+    image_files: list[ImageFile],
     temp_directory: str,
 ):
-    """Base64 encodes image, converts to expected jsonl format and uploads to create a Batch"""
-    with open(image_file.path, "rb") as image:
-        base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
-
-    upload_file_name = f"{image_file.trace_id}--page--{image_file.page_number}.jsonl"
-    jsonl = _jsonl_format(upload_file_name, base64_encoded_image)
+    """Base64 encodes image, converts to expected jsonl format and uploads"""
+    trace_id = image_files[0].trace_id
+    current_index = 0
+    batch_files = []
     upload_file_location = file_in_temp_dir(
-        directory=temp_directory, file_name=upload_file_name
+        directory=temp_directory, file_name=f"image-{trace_id}-{current_index}.jsonl"
     )
-    with open(upload_file_location, "w") as jsonl_file:
-        jsonl_file.write(json.dumps(jsonl) + "\n")
 
+    for image_file in image_files:
+        if os.path.exists(upload_file_location) and os.path.getsize(upload_file_location) > MAX_FILE_SIZE:
+            """When approaching upload file limit, upload and start new file"""
+            batch_file = await _create_batch_file(client, trace_id, upload_file_location)
+            batch_files.append(batch_file)
+            current_index += 1
+            upload_file_location = file_in_temp_dir(
+                directory=temp_directory, file_name=f"{trace_id}-{current_index}.jsonl"
+            )
+
+        with open(image_file.path, "rb") as image:
+            base64_encoded_image = base64.b64encode(image.read()).decode("utf-8")
+
+        prompt_custom_id = f"{image_file.trace_id}--page--{image_file.page_number}.jsonl"
+        jsonl = _jsonl_format(prompt_custom_id, base64_encoded_image)
+        with open(upload_file_location, "a") as jsonl_file:
+            jsonl_file.write(json.dumps(jsonl) + "\n")
+    batch_file = await _create_batch_file(client, trace_id, upload_file_location)
+    batch_files.append(batch_file)
+    return batch_files
+
+
+async def _create_batch_file(client, trace_id, upload_file_location):
     file_response = await client.upload(upload_file_location)
     return BatchFile(
         id=file_response.id,
         name=file_response.filename,
         purpose=file_response.purpose,
         status=file_response.status,
-        trace_id=image_file.trace_id,
+        trace_id=trace_id,
     )
 
 
