@@ -2,10 +2,10 @@
 
 ### What it does
 - Converts PDF into images
-- Makes requests to Azure OpenAI to covert the images to markdown using Batch API
+- Makes requests to Azure OpenAI to convert the images to markdown using Batch API
   - [Azure OpenAPI Batch](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/batch?tabs=standard-input%2Cpython-secure&pivots=programming-language-python)
   - [OpenAPI Batch](https://platform.openai.com/docs/guides/batch)
-- Polls for batch completion and then coverts AI responses in structured output based on the page of the corresponding PDF
+- Polls for batch completion and then converts AI responses in structured output based on the page of the corresponding PDF
 - Post batch processing to do what you wish with the resulting markdown
 
 ### Requirements
