@@ -21,9 +21,9 @@ async def parallex(
     model: str,
     pdf_source_url: str,
     post_process_callable: Optional[Callable[..., None]] = None,
-    concurrency: int = 20,
-    prompt_text: str = DEFAULT_PROMPT,
-    log_level: str = "ERROR",
+    concurrency: Optional[int] = 20,
+    prompt_text: Optional[str] = DEFAULT_PROMPT,
+    log_level: Optional[str] = "ERROR",
 ) -> ParallexCallableOutput:
     setup_logger(log_level)
     with tempfile.TemporaryDirectory() as temp_directory:

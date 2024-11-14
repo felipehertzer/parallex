@@ -13,17 +13,11 @@ os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = "gpt-4o-global-batch" # this is the 
 model = "gpt-4o"
 
 def example_post_process(output: ParallexCallableOutput) -> None:
-    print(f"Post-processing file: {output.file_name}")
-    for page in output.pages:
-        print(f"Post-processing page: {page.page_number}")
-    print(f"Post-processing file: {output.pages[0].output_content}")
-
-    combined_content = "\n\n".join(page.output_content for page in output.pages)
-    # Write to a Markdown file
-    with open(f"{output.trace_id}-{output.file_name}.md", "w") as md_file:
-        md_file.write(combined_content)
-
-
+    file_name = output.file_name
+    pages = output.pages
+    for page in pages:
+        markdown_for_page = page.output_content
+        pdf_page_number = page.page_number
 files = []
 
 async def process_file(file_url: str, semaphore: asyncio.Semaphore):
