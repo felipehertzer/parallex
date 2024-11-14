@@ -1,8 +1,8 @@
 import logging
 
-from aiologger import Logger
+from aiologger.loggers.json import JsonLogger
 
-logger = Logger.with_default_handlers(name="parallex")
+logger = JsonLogger.with_default_handlers(name="parallex")
 
 
 def setup_logger(level: str = "ERROR"):
@@ -15,6 +15,4 @@ def setup_logger(level: str = "ERROR"):
         "NOTSET": logging.NOTSET,
     }.get(level, logging.INFO)
 
-    logging.basicConfig(
-        level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    logger.setLevel = level
