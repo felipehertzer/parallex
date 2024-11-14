@@ -16,7 +16,7 @@ async def upload_images_for_processing(
     image_files: list[ImageFile],
     temp_directory: str,
     prompt_text: str,
-):
+) -> list[BatchFile]:
     """Base64 encodes image, converts to expected jsonl format and uploads"""
     trace_id = image_files[0].trace_id
     current_index = 0

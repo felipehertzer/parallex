@@ -35,8 +35,6 @@ async def wait_for_batch_completion(client: OpenAIClient, batch: UploadBatch) ->
         await asyncio.sleep(delay)
         batch_response = await client.retrieve_batch(batch.id)
         status = batch_response.status
-        batch.output_file_id = batch_response.output_file_id
-        batch.error_file_id = batch_response.error_file_id
         delay = 30
         if status == "completed":
             return batch_response.output_file_id
