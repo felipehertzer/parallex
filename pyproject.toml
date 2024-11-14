@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "parallex"
 version = "0.1.1"
-escription = "PDF to markdown using Azure OpenAI batch processing"
+description = "PDF to markdown using Azure OpenAI batch processing"
 authors = ["Jeff Hostetler <jeff@summed.ai>", "Kevin Bao <kevin@summed.ai>"]
 repository = "https://github.com/Summed-AI/parallex"
 readme = "README.md"
