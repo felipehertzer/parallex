@@ -19,7 +19,7 @@ async def parallex(
     model: str,
     pdf_source_url: str,
     post_process_callable: Optional[Callable[..., None]] = None,
-    concurrency: int = 10,
+    concurrency: int = 20,
     log_level: str = "ERROR",
 ) -> ParallexCallableOutput:
     setup_logger(log_level)
@@ -81,15 +81,20 @@ async def _wait_and_create_pages(
 ):
     async with semaphore:
         logger.debug(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
-        output_file_id = await wait_for_batch_completion(
-            client=client, batch_id=batch.id
-        )
+        output_file_id = await wait_for_batch_completion(client=client, batch=batch)
         logger.debug(f"batch completed - {batch.id} - {batch.trace_id}")
         page_response = await process_output(
             client=client, output_file_id=output_file_id, page_number=batch.page_number
         )
+        await _remove_global_batch_files(client=client, batch=batch)
         logger.debug(f"page_response: {page_response.page_number}")
         return page_response
+
+
+async def _remove_global_batch_files(client: OpenAIClient, batch: UploadBatch):
+    file_ids = [batch.input_file_id, batch.output_file_id, batch.error_file_id]
+    for file_id in file_ids:
+        await client.delete_file(file_id)
 
 
 async def _create_image_and_batch_job(

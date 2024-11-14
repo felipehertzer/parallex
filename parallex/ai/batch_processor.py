@@ -28,15 +28,17 @@ async def create_batch(
             backoff_delay *= 2
 
 
-async def wait_for_batch_completion(client: OpenAIClient, batch_id) -> str:
+# TODO handle errors
+async def wait_for_batch_completion(client: OpenAIClient, batch: UploadBatch) -> str:
     """Waits for Batch to complete and returns output_file_id when available"""
     status = "validating"
     delay = 5
     while status not in ("completed", "failed", "canceled"):
         await asyncio.sleep(delay)
-        batch_response = await client.retrieve_batch(batch_id)
+        batch_response = await client.retrieve_batch(batch.id)
         status = batch_response.status
         if status == "completed":
+            batch.output_file_id = batch_response.output_file_id
             return batch_response.output_file_id
         else:
-            delay = 5 * 60
+            delay = 30
