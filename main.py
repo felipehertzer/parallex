@@ -5,10 +5,10 @@ import time
 from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.parallex import parallex
 
-os.environ["AZURE_OPENAI_API_KEY"] = "key"
-os.environ["AZURE_OPENAI_ENDPOINT"] = "endpoint.com"
-os.environ["AZURE_OPENAI_API_VERSION"] = "deployment_version"
-os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = "gpt-4o-global-batch" # this is the deployment name
+os.environ["AZURE_API_KEY"] = "key"
+os.environ["AZURE_API_BASE"] = "endpoint.com"
+os.environ["AZURE_API_VERSION"] = "deployment_version"
+os.environ["AZURE_API_DEPLOYMENT"] = "gpt-4o-global-batch" # this is the deployment name
 
 model = "gpt-4o"
 
