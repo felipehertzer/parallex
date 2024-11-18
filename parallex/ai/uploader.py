@@ -71,7 +71,7 @@ def _jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str):
         "method": "POST",
         "url": "/chat/completions",
         "body": {
-            "model": os.getenv("AZURE_OPENAI_API_DEPLOYMENT"),
+            "model": os.getenv("AZURE_API_DEPLOYMENT"),
             "messages": [
                 {
                     "role": "user",

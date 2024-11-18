@@ -25,10 +25,10 @@ import os
 from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.parallex import parallex
 
-os.environ["AZURE_OPENAI_API_KEY"] = "key"
-os.environ["AZURE_OPENAI_ENDPOINT"] = "your-endpoint.com"
-os.environ["AZURE_OPENAI_API_VERSION"] = "deployment_version"
-os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = "deployment_name"
+os.environ["AZURE_API_KEY"] = "key"
+os.environ["AZURE_API_BASE"] = "your-endpoint.com"
+os.environ["AZURE_API_VERSION"] = "deployment_version"
+os.environ["AZURE_API_DEPLOYMENT"] = "deployment_name"
 
 model = "gpt-4o"
 

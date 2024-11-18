@@ -15,9 +15,9 @@ class OpenAIClient:
         self.file_handler = remote_file_handler
 
         self._client = AsyncAzureOpenAI(
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+            azure_endpoint=os.getenv("AZURE_API_BASE"),
+            api_key=os.getenv("AZURE_API_KEY"),
+            api_version=os.getenv("AZURE_API_VERSION"),
         )
 
     async def upload(self, file_path: str) -> FileObject:
