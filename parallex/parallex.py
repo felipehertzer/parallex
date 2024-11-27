@@ -1,17 +1,24 @@
 import asyncio
 import tempfile
+import uuid
 from typing import Callable, Optional
 from uuid import UUID
 
 from parallex.ai.batch_processor import wait_for_batch_completion, create_batch
 from parallex.ai.open_ai_client import OpenAIClient
-from parallex.ai.output_processor import process_output
-from parallex.ai.uploader import upload_images_for_processing
+from parallex.ai.output_processor import process_images_output, process_prompts_output
+from parallex.ai.uploader import (
+    upload_images_for_processing,
+    upload_prompts_for_processing,
+)
 from parallex.file_management.converter import convert_pdf_to_images
 from parallex.file_management.file_finder import add_file_to_temp_directory
 from parallex.file_management.remote_file_handler import RemoteFileHandler
 from parallex.models.batch_file import BatchFile
 from parallex.models.parallex_callable_output import ParallexCallableOutput
+from parallex.models.parallex_prompts_callable_output import (
+    ParallexPromptsCallableOutput,
+)
 from parallex.models.upload_batch import UploadBatch
 from parallex.utils.constants import DEFAULT_PROMPT
 from parallex.utils.logger import logger, setup_logger
@@ -40,9 +47,63 @@ async def parallex(
     except Exception as e:
         logger.error(f"Error occurred: {e}")
     finally:
-        for file in remote_file_handler.created_files:
-            logger.info(f"deleting - {file}")
-            await open_ai_client.delete_file(file)
+        await _delete_associated_files(open_ai_client, remote_file_handler)
+
+
+async def parallex_simple_prompts(
+    model: str,
+    prompts: list[str],
+    post_process_callable: Optional[Callable[..., None]] = None,
+    log_level: Optional[str] = "ERROR",
+) -> ParallexPromptsCallableOutput:
+    setup_logger(log_level)
+    remote_file_handler = RemoteFileHandler()
+    open_ai_client = OpenAIClient(model=model, remote_file_handler=remote_file_handler)
+    try:
+        return await _prompts_execute(
+            open_ai_client=open_ai_client,
+            prompts=prompts,
+            post_process_callable=post_process_callable,
+        )
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
+    finally:
+        await _delete_associated_files(open_ai_client, remote_file_handler)
+
+
+async def _prompts_execute(
+    open_ai_client: OpenAIClient,
+    prompts: list[str],
+    post_process_callable: Optional[Callable[..., None]] = None,
+):
+    with tempfile.TemporaryDirectory() as temp_directory:
+        trace_id = uuid.uuid4()
+        batch_file = await upload_prompts_for_processing(
+            client=open_ai_client,
+            prompts=prompts,
+            temp_directory=temp_directory,
+            trace_id=trace_id,
+        )
+        batch = await create_batch(
+            client=open_ai_client, file_id=batch_file.id, trace_id=trace_id
+        )
+        logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
+        output_file_id = await wait_for_batch_completion(
+            client=open_ai_client, batch=batch
+        )
+        logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
+        prompts_output = await process_prompts_output(
+            client=open_ai_client, output_file_id=output_file_id
+        )
+        sorted_responses = sorted(prompts_output, key=lambda x: x.prompt_index)
+        callable_output = ParallexPromptsCallableOutput(
+            original_prompts=prompts,
+            trace_id=trace_id,
+            responses=sorted_responses,
+        )
+        if post_process_callable is not None:
+            post_process_callable(output=callable_output)
+        return callable_output
 
 
 async def _execute(
@@ -115,7 +176,7 @@ async def _wait_and_create_pages(
         logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
         output_file_id = await wait_for_batch_completion(client=client, batch=batch)
         logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
-        page_responses = await process_output(
+        page_responses = await process_images_output(
             client=client, output_file_id=output_file_id
         )
         return page_responses
@@ -132,3 +193,9 @@ async def _create_batch_jobs(
             client=client, file_id=batch_file.id, trace_id=trace_id
         )
         return upload_batch
+
+
+async def _delete_associated_files(open_ai_client, remote_file_handler):
+    for file in remote_file_handler.created_files:
+        logger.info(f"deleting - {file}")
+        await open_ai_client.delete_file(file)

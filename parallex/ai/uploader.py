@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from uuid import UUID
 
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.file_management.utils import file_in_temp_dir
@@ -46,12 +47,28 @@ async def upload_images_for_processing(
         prompt_custom_id = (
             f"{image_file.trace_id}{CUSTOM_ID_DELINEATOR}{image_file.page_number}.jsonl"
         )
-        jsonl = _jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text)
+        jsonl = _image_jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text)
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
     batch_files.append(batch_file)
     return batch_files
+
+
+async def upload_prompts_for_processing(
+    client: OpenAIClient, prompts: list[str], temp_directory: str, trace_id: UUID
+) -> BatchFile:
+    """Creates jsonl file and uploads for processing"""
+    upload_file_location = file_in_temp_dir(
+        directory=temp_directory, file_name=f"prompts-{trace_id}.jsonl"
+    )
+    for index, prompt in enumerate(prompts):
+        prompt_custom_id = f"{trace_id}{CUSTOM_ID_DELINEATOR}{index}.jsonl"
+        jsonl = _simple_jsonl_format(prompt_custom_id, prompt)
+        with open(upload_file_location, "a") as jsonl_file:
+            jsonl_file.write(json.dumps(jsonl) + "\n")
+    batch_file = await _create_batch_file(client, trace_id, upload_file_location)
+    return batch_file
 
 
 async def _create_batch_file(client, trace_id, upload_file_location):
@@ -65,7 +82,19 @@ async def _create_batch_file(client, trace_id, upload_file_location):
     )
 
 
-def _jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str):
+def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str):
+    return {
+        "custom_id": prompt_custom_id,
+        "method": "POST",
+        "url": "/chat/completions",
+        "body": {
+            "model": os.getenv("AZURE_API_DEPLOYMENT"),
+            "messages": [{"role": "user", "content": prompt_text}],
+        },
+    }
+
+
+def _image_jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str):
     return {
         "custom_id": prompt_custom_id,
         "method": "POST",
