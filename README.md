@@ -75,3 +75,28 @@ class PageResponse(BaseModel):
     If unable to parse, return an empty string.
 """
 ```
+
+### Batch processing for list of prompts
+If you do not need to process images, but just want to process prompts using the Batch API,
+you can call;
+```python
+response_data: ParallexPromptsCallableOutput = await parallex_simple_prompts(
+    model=model,
+    prompts=["Some prompt", "Some other prompt"],
+    post_process_callable=example_post_process
+)
+responses = response_data.responses
+```
+This will create a batch that includes all the prompts in `prompts` and responses can be tied back to the prompt by index.
+
+Responses have the following structure;
+```python
+class ParallexPromptsCallableOutput(BaseModel):
+    original_prompts: list[str] = Field(description="List of given prompts")
+    trace_id: UUID = Field(description="Unique trace for each file")
+    responses: list[PromptResponse] = Field(description="List of PromptResponse objects")
+
+class PromptResponse(BaseModel):
+    output_content: str = Field(description="Response from the model")
+    prompt_index: int = Field(description="Index corresponding to the given prompts")
+```

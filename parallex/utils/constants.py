@@ -6,4 +6,4 @@ DEFAULT_PROMPT = """
     If unable to parse, return an empty string.
     """
 
-CUSTOM_ID_DELINEATOR = "--page--"
+CUSTOM_ID_DELINEATOR = "--parallex--"
