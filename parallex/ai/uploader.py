@@ -76,8 +76,8 @@ async def upload_prompts_for_processing(
         jsonl = _simple_jsonl_format(prompt_custom_id, prompt)
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
-        batch_file = await _create_batch_file(client, trace_id, upload_file_location)
-        batch_files.append(batch_file)
+    batch_file = await _create_batch_file(client, trace_id, upload_file_location)
+    batch_files.append(batch_file)
     return batch_files
 
 

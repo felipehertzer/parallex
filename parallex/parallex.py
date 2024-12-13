@@ -46,6 +46,7 @@ async def parallex(
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
+        raise e
     finally:
         await _delete_associated_files(open_ai_client, remote_file_handler)
 
@@ -69,6 +70,7 @@ async def parallex_simple_prompts(
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
+        raise e
     finally:
         await _delete_associated_files(open_ai_client, remote_file_handler)
 
@@ -101,30 +103,21 @@ async def _prompts_execute(
             start_batch_tasks.append(batch_task)
         batch_jobs = await asyncio.gather(*start_batch_tasks)
 
+        process_semaphore = asyncio.Semaphore(concurrency)
         prompt_tasks = []
         for batch in batch_jobs:
             logger.info(
                 f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
             )
-            page_task = asyncio.create_task(
-                await wait_for_batch_completion(client=open_ai_client, batch=batch)
+            prompt_task = asyncio.create_task(
+                await _wait_and_create_prompt_responses(batch=batch, client=open_ai_client, semaphore=process_semaphore)
             )
-            prompt_tasks.append(page_task)
+            prompt_tasks.append(prompt_task)
+        prompt_response_groups = await asyncio.gather(*prompt_tasks)
 
-        output_file_ids = await asyncio.gather(*prompt_tasks)
+        flat_responses = [response for batch in prompt_response_groups for response in batch]
 
-        prompts_output = []
-        for output_file_id in output_file_ids:
-            logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
-            prompts_output.append(
-                await process_prompts_output(
-                    client=open_ai_client, output_file_id=output_file_id
-                )
-            )
-
-        flat_prompts = [page for batch in prompts_output for page in batch]
-
-        sorted_responses = sorted(flat_prompts, key=lambda x: x.prompt_index)
+        sorted_responses = sorted(flat_responses, key=lambda x: x.prompt_index)
         callable_output = ParallexPromptsCallableOutput(
             original_prompts=prompts,
             trace_id=trace_id,
@@ -184,7 +177,7 @@ async def _execute(
 
         pages = [page for batch_pages in page_groups for page in batch_pages]
         logger.info(f"pages done. total pages- {len(pages)} - {trace_id}")
-        sorted_pages = sorted(pages, key=lambda x: x.page_number)
+        sorted_pages = sorted(pages, key=lambda x: x.prompt_index)
 
         # TODO add combined version of MD to output / save to file system
         callable_output = ParallexCallableOutput(
@@ -209,6 +202,19 @@ async def _wait_and_create_pages(
             client=client, output_file_id=output_file_id
         )
         return page_responses
+
+
+async def _wait_and_create_prompt_responses(
+    batch: UploadBatch, client: OpenAIClient, semaphore: asyncio.Semaphore
+):
+    async with semaphore:
+        logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
+        output_file_id = await wait_for_batch_completion(client=client, batch=batch)
+        logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
+        prompt_responses = await process_prompts_output(
+            client=client, output_file_id=output_file_id
+        )
+        return prompt_responses
 
 
 async def _create_batch_jobs(
