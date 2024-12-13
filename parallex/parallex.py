@@ -55,6 +55,7 @@ async def parallex_simple_prompts(
     prompts: list[str],
     post_process_callable: Optional[Callable[..., None]] = None,
     log_level: Optional[str] = "ERROR",
+    concurrency: Optional[int] = 20,
 ) -> ParallexPromptsCallableOutput:
     setup_logger(log_level)
     remote_file_handler = RemoteFileHandler()
@@ -64,6 +65,7 @@ async def parallex_simple_prompts(
             open_ai_client=open_ai_client,
             prompts=prompts,
             post_process_callable=post_process_callable,
+            concurrency=concurrency,
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
@@ -75,27 +77,54 @@ async def _prompts_execute(
     open_ai_client: OpenAIClient,
     prompts: list[str],
     post_process_callable: Optional[Callable[..., None]] = None,
+    concurrency: Optional[int] = 20,
 ):
     with tempfile.TemporaryDirectory() as temp_directory:
         trace_id = uuid.uuid4()
-        batch_file = await upload_prompts_for_processing(
+        batch_files = await upload_prompts_for_processing(
             client=open_ai_client,
             prompts=prompts,
             temp_directory=temp_directory,
             trace_id=trace_id,
         )
-        batch = await create_batch(
-            client=open_ai_client, file_id=batch_file.id, trace_id=trace_id
-        )
-        logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
-        output_file_id = await wait_for_batch_completion(
-            client=open_ai_client, batch=batch
-        )
-        logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
-        prompts_output = await process_prompts_output(
-            client=open_ai_client, output_file_id=output_file_id
-        )
-        sorted_responses = sorted(prompts_output, key=lambda x: x.prompt_index)
+        start_batch_semaphore = asyncio.Semaphore(concurrency)
+        start_batch_tasks = []
+        for file in batch_files:
+            batch_task = asyncio.create_task(
+                _create_batch_jobs(
+                    batch_file=file,
+                    client=open_ai_client,
+                    trace_id=trace_id,
+                    semaphore=start_batch_semaphore,
+                )
+            )
+            start_batch_tasks.append(batch_task)
+        batch_jobs = await asyncio.gather(*start_batch_tasks)
+
+        prompt_tasks = []
+        for batch in batch_jobs:
+            logger.info(
+                f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
+            )
+            page_task = asyncio.create_task(
+                await wait_for_batch_completion(client=open_ai_client, batch=batch)
+            )
+            prompt_tasks.append(page_task)
+
+        output_file_ids = await asyncio.gather(*prompt_tasks)
+
+        prompts_output = []
+        for output_file_id in output_file_ids:
+            logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
+            prompts_output.append(
+                await process_prompts_output(
+                    client=open_ai_client, output_file_id=output_file_id
+                )
+            )
+
+        flat_prompts = [page for batch in prompts_output for page in batch]
+
+        sorted_responses = sorted(flat_prompts, key=lambda x: x.prompt_index)
         callable_output = ParallexPromptsCallableOutput(
             original_prompts=prompts,
             trace_id=trace_id,
