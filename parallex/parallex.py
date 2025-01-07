@@ -177,7 +177,7 @@ async def _execute(
 
         pages = [page for batch_pages in page_groups for page in batch_pages]
         logger.info(f"pages done. total pages- {len(pages)} - {trace_id}")
-        sorted_pages = sorted(pages, key=lambda x: x.prompt_index)
+        sorted_pages = sorted(pages, key=lambda x: x.page_number)
 
         # TODO add combined version of MD to output / save to file system
         callable_output = ParallexCallableOutput(
