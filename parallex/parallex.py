@@ -4,6 +4,8 @@ import uuid
 from typing import Callable, Optional
 from uuid import UUID
 
+from pydantic import BaseModel
+
 from parallex.ai.batch_processor import wait_for_batch_completion, create_batch
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.ai.output_processor import process_images_output, process_prompts_output
@@ -32,6 +34,7 @@ async def parallex(
     concurrency: Optional[int] = 20,
     prompt_text: Optional[str] = DEFAULT_PROMPT,
     log_level: Optional[str] = "ERROR",
+    response_model: Optional[type[BaseModel]] = None,
 ) -> ParallexCallableOutput:
     setup_logger(log_level)
     remote_file_handler = RemoteFileHandler()
@@ -43,6 +46,7 @@ async def parallex(
             post_process_callable=post_process_callable,
             concurrency=concurrency,
             prompt_text=prompt_text,
+            model=response_model
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
@@ -57,6 +61,7 @@ async def parallex_simple_prompts(
     post_process_callable: Optional[Callable[..., None]] = None,
     log_level: Optional[str] = "ERROR",
     concurrency: Optional[int] = 20,
+    response_model: Optional[type[BaseModel]] = None,
 ) -> ParallexPromptsCallableOutput:
     setup_logger(log_level)
     remote_file_handler = RemoteFileHandler()
@@ -67,6 +72,7 @@ async def parallex_simple_prompts(
             prompts=prompts,
             post_process_callable=post_process_callable,
             concurrency=concurrency,
+            model=response_model,
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
@@ -80,6 +86,7 @@ async def _prompts_execute(
     prompts: list[str],
     post_process_callable: Optional[Callable[..., None]] = None,
     concurrency: Optional[int] = 20,
+    model: Optional[type[BaseModel]] = None,
 ):
     with tempfile.TemporaryDirectory() as temp_directory:
         trace_id = uuid.uuid4()
@@ -88,6 +95,7 @@ async def _prompts_execute(
             prompts=prompts,
             temp_directory=temp_directory,
             trace_id=trace_id,
+            model=model,
         )
         start_batch_semaphore = asyncio.Semaphore(concurrency)
         start_batch_tasks = []
@@ -110,7 +118,7 @@ async def _prompts_execute(
                 f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
             )
             prompt_task = asyncio.create_task(
-                _wait_and_create_prompt_responses(batch=batch, client=open_ai_client, semaphore=process_semaphore)
+                _wait_and_create_prompt_responses(batch=batch, client=open_ai_client, semaphore=process_semaphore, model=model)
             )
             prompt_tasks.append(prompt_task)
         prompt_response_groups = await asyncio.gather(*prompt_tasks)
@@ -134,6 +142,7 @@ async def _execute(
     post_process_callable: Optional[Callable[..., None]] = None,
     concurrency: Optional[int] = 20,
     prompt_text: Optional[str] = DEFAULT_PROMPT,
+    model: Optional[type[BaseModel]] = None,
 ) -> ParallexCallableOutput:
     with tempfile.TemporaryDirectory() as temp_directory:
         raw_file = await add_file_to_temp_directory(
@@ -169,7 +178,7 @@ async def _execute(
         for batch in batch_jobs:
             page_task = asyncio.create_task(
                 _wait_and_create_pages(
-                    batch=batch, client=open_ai_client, semaphore=process_semaphore
+                    batch=batch, client=open_ai_client, semaphore=process_semaphore, model=model
                 )
             )
             pages_tasks.append(page_task)
@@ -192,27 +201,27 @@ async def _execute(
 
 
 async def _wait_and_create_pages(
-    batch: UploadBatch, client: OpenAIClient, semaphore: asyncio.Semaphore
+    batch: UploadBatch, client: OpenAIClient, semaphore: asyncio.Semaphore, model: Optional[type[BaseModel]] = None
 ):
     async with semaphore:
         logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
         output_file_id = await wait_for_batch_completion(client=client, batch=batch)
         logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
         page_responses = await process_images_output(
-            client=client, output_file_id=output_file_id
+            client=client, output_file_id=output_file_id, model=model,
         )
         return page_responses
 
 
 async def _wait_and_create_prompt_responses(
-    batch: UploadBatch, client: OpenAIClient, semaphore: asyncio.Semaphore
+    batch: UploadBatch, client: OpenAIClient, semaphore: asyncio.Semaphore, model: Optional[type[BaseModel]] = None
 ):
     async with semaphore:
         logger.info(f"waiting for batch to complete - {batch.id} - {batch.trace_id}")
         output_file_id = await wait_for_batch_completion(client=client, batch=batch)
         logger.info(f"batch completed - {batch.id} - {batch.trace_id}")
         prompt_responses = await process_prompts_output(
-            client=client, output_file_id=output_file_id
+            client=client, output_file_id=output_file_id, model=model,
         )
         return prompt_responses
 

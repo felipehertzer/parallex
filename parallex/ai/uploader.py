@@ -1,7 +1,11 @@
 import base64
 import json
 import os
+from typing import Optional
 from uuid import UUID
+
+from openai.lib._pydantic import to_strict_json_schema
+from pydantic import BaseModel
 
 from parallex.ai.open_ai_client import OpenAIClient
 from parallex.file_management.utils import file_in_temp_dir
@@ -17,6 +21,7 @@ async def upload_images_for_processing(
     image_files: list[ImageFile],
     temp_directory: str,
     prompt_text: str,
+    model: Optional[type[BaseModel]] = None,
 ) -> list[BatchFile]:
     """Base64 encodes image, converts to expected jsonl format and uploads"""
     trace_id = image_files[0].trace_id
@@ -43,7 +48,7 @@ async def upload_images_for_processing(
         prompt_custom_id = (
             f"{image_file.trace_id}{CUSTOM_ID_DELINEATOR}{image_file.page_number}.jsonl"
         )
-        jsonl = _image_jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text)
+        jsonl = _image_jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text, model)
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
@@ -52,7 +57,10 @@ async def upload_images_for_processing(
 
 
 async def upload_prompts_for_processing(
-    client: OpenAIClient, prompts: list[str], temp_directory: str, trace_id: UUID
+    client: OpenAIClient,
+    prompts: list[str], temp_directory: str,
+    trace_id: UUID,
+    model: Optional[type[BaseModel]] = None
 ) -> list[BatchFile]:
     """Creates jsonl file and uploads for processing"""
     current_index = 0
@@ -73,7 +81,7 @@ async def upload_prompts_for_processing(
             )
 
         prompt_custom_id = f"{trace_id}{CUSTOM_ID_DELINEATOR}{index}.jsonl"
-        jsonl = _simple_jsonl_format(prompt_custom_id, prompt)
+        jsonl = _simple_jsonl_format(prompt_custom_id, prompt, model)
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
@@ -119,8 +127,20 @@ async def _create_batch_file(
     )
 
 
-def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str) -> dict:
+def _response_format(model: type[BaseModel]) -> dict:
+    schema = to_strict_json_schema(model)
     return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": model.__name__,
+            "strict": True,
+            "schema": schema
+        }
+    }
+
+
+def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str, model: Optional[type[BaseModel]]) -> dict:
+    payload = {
         "custom_id": prompt_custom_id,
         "method": "POST",
         "url": "/chat/completions",
@@ -130,10 +150,13 @@ def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str) -> dict:
             "temperature": 0.0, # TODO make configurable
         },
     }
+    if model is not None:
+        payload["body"]["response_format"] = _response_format(model)
+    return payload
 
 
-def _image_jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str):
-    return {
+def _image_jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str, model: Optional[type[BaseModel]] = None) -> dict:
+    payload = {
         "custom_id": prompt_custom_id,
         "method": "POST",
         "url": "/chat/completions",
@@ -154,5 +177,9 @@ def _image_jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: 
                 }
             ],
             "max_tokens": 2000,
+            "response_format": {"type": "json_object"}
         },
     }
+    if model is not None:
+        payload["body"]["response_format"] = _response_format(model)
+    return payload
