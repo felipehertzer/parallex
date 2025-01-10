@@ -127,6 +127,7 @@ def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str) -> dict:
         "body": {
             "model": os.getenv("AZURE_API_DEPLOYMENT"),
             "messages": [{"role": "user", "content": prompt_text}],
+            "temperature": 0.0, # TODO make configurable
         },
     }
 
