@@ -110,7 +110,7 @@ async def _prompts_execute(
                 f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
             )
             prompt_task = asyncio.create_task(
-                await _wait_and_create_prompt_responses(batch=batch, client=open_ai_client, semaphore=process_semaphore)
+                _wait_and_create_prompt_responses(batch=batch, client=open_ai_client, semaphore=process_semaphore)
             )
             prompt_tasks.append(prompt_task)
         prompt_response_groups = await asyncio.gather(*prompt_tasks)
