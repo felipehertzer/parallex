@@ -35,10 +35,19 @@ async def parallex(
     prompt_text: Optional[str] = DEFAULT_PROMPT,
     log_level: Optional[str] = "ERROR",
     response_model: Optional[type[BaseModel]] = None,
+    azure_endpoint_env_name: Optional[str] = "AZURE_API_BASE",
+    azure_api_key_env_name: Optional[str] = "AZURE_API_KEY",
+    azure_api_version_env_name: Optional[str] = "AZURE_API_VERSION",
+    azure_api_deployment_env_name: Optional[str] = "AZURE_API_DEPLOYMENT",
 ) -> ParallexCallableOutput:
     setup_logger(log_level)
     remote_file_handler = RemoteFileHandler()
-    open_ai_client = OpenAIClient(model=model, remote_file_handler=remote_file_handler)
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        azure_endpoint_env_name=azure_endpoint_env_name,
+        azure_api_key_env_name=azure_api_key_env_name,
+        azure_api_version_env_name=azure_api_version_env_name,
+    )
     try:
         return await _execute(
             open_ai_client=open_ai_client,
@@ -46,6 +55,7 @@ async def parallex(
             post_process_callable=post_process_callable,
             concurrency=concurrency,
             prompt_text=prompt_text,
+            azure_api_deployment_env_name=azure_api_deployment_env_name,
             model=response_model
         )
     except Exception as e:
@@ -56,16 +66,24 @@ async def parallex(
 
 
 async def parallex_simple_prompts(
-    model: str,
     prompts: list[str],
     post_process_callable: Optional[Callable[..., None]] = None,
     log_level: Optional[str] = "ERROR",
     concurrency: Optional[int] = 20,
     response_model: Optional[type[BaseModel]] = None,
+    azure_endpoint_env_name: Optional[str] = "AZURE_API_BASE",
+    azure_api_key_env_name: Optional[str] = "AZURE_API_KEY",
+    azure_api_version_env_name: Optional[str] = "AZURE_API_VERSION",
+    azure_api_deployment_env_name: Optional[str] = "AZURE_API_DEPLOYMENT",
 ) -> ParallexPromptsCallableOutput:
     setup_logger(log_level)
     remote_file_handler = RemoteFileHandler()
-    open_ai_client = OpenAIClient(model=model, remote_file_handler=remote_file_handler)
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        azure_endpoint_env_name=azure_endpoint_env_name,
+        azure_api_key_env_name=azure_api_key_env_name,
+        azure_api_version_env_name=azure_api_version_env_name,
+    )
     try:
         return await _prompts_execute(
             open_ai_client=open_ai_client,
@@ -73,6 +91,7 @@ async def parallex_simple_prompts(
             post_process_callable=post_process_callable,
             concurrency=concurrency,
             model=response_model,
+            azure_api_deployment_env_name=azure_api_deployment_env_name
         )
     except Exception as e:
         logger.error(f"Error occurred: {e}")
@@ -84,6 +103,7 @@ async def parallex_simple_prompts(
 async def _prompts_execute(
     open_ai_client: OpenAIClient,
     prompts: list[str],
+    azure_api_deployment_env_name: str,
     post_process_callable: Optional[Callable[..., None]] = None,
     concurrency: Optional[int] = 20,
     model: Optional[type[BaseModel]] = None,
@@ -95,6 +115,7 @@ async def _prompts_execute(
             prompts=prompts,
             temp_directory=temp_directory,
             trace_id=trace_id,
+            azure_api_deployment_env_name=azure_api_deployment_env_name,
             model=model,
         )
         start_batch_semaphore = asyncio.Semaphore(concurrency)
@@ -139,6 +160,7 @@ async def _prompts_execute(
 async def _execute(
     open_ai_client: OpenAIClient,
     pdf_source_url: str,
+    azure_api_deployment_env_name: str,
     post_process_callable: Optional[Callable[..., None]] = None,
     concurrency: Optional[int] = 20,
     prompt_text: Optional[str] = DEFAULT_PROMPT,
@@ -158,6 +180,8 @@ async def _execute(
             image_files=image_files,
             temp_directory=temp_directory,
             prompt_text=prompt_text,
+            model=model,
+            azure_api_deployment_env_name=azure_api_deployment_env_name
         )
         start_batch_semaphore = asyncio.Semaphore(concurrency)
         start_batch_tasks = []

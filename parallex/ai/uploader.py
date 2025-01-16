@@ -21,6 +21,7 @@ async def upload_images_for_processing(
     image_files: list[ImageFile],
     temp_directory: str,
     prompt_text: str,
+    azure_api_deployment_env_name: str,
     model: Optional[type[BaseModel]] = None,
 ) -> list[BatchFile]:
     """Base64 encodes image, converts to expected jsonl format and uploads"""
@@ -48,7 +49,13 @@ async def upload_images_for_processing(
         prompt_custom_id = (
             f"{image_file.trace_id}{CUSTOM_ID_DELINEATOR}{image_file.page_number}.jsonl"
         )
-        jsonl = _image_jsonl_format(prompt_custom_id, base64_encoded_image, prompt_text, model)
+        jsonl = _image_jsonl_format(
+            prompt_custom_id,
+            base64_encoded_image,
+            prompt_text,
+            azure_api_deployment_env_name,
+            model
+        )
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
@@ -60,7 +67,8 @@ async def upload_prompts_for_processing(
     client: OpenAIClient,
     prompts: list[str], temp_directory: str,
     trace_id: UUID,
-    model: Optional[type[BaseModel]] = None
+    azure_api_deployment_env_name: str,
+    model: Optional[type[BaseModel]] = None,
 ) -> list[BatchFile]:
     """Creates jsonl file and uploads for processing"""
     current_index = 0
@@ -81,7 +89,12 @@ async def upload_prompts_for_processing(
             )
 
         prompt_custom_id = f"{trace_id}{CUSTOM_ID_DELINEATOR}{index}.jsonl"
-        jsonl = _simple_jsonl_format(prompt_custom_id, prompt, model)
+        jsonl = _simple_jsonl_format(
+            prompt_custom_id,
+            prompt,
+            azure_api_deployment_env_name,
+            model
+        )
         with open(upload_file_location, "a") as jsonl_file:
             jsonl_file.write(json.dumps(jsonl) + "\n")
     batch_file = await _create_batch_file(client, trace_id, upload_file_location)
@@ -139,13 +152,18 @@ def _response_format(model: type[BaseModel]) -> dict:
     }
 
 
-def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str, model: Optional[type[BaseModel]]) -> dict:
+def _simple_jsonl_format(
+    prompt_custom_id: str,
+    prompt_text: str,
+    azure_api_deployment_env_name: str,
+    model: Optional[type[BaseModel]]
+) -> dict:
     payload = {
         "custom_id": prompt_custom_id,
         "method": "POST",
         "url": "/chat/completions",
         "body": {
-            "model": os.getenv("AZURE_API_DEPLOYMENT"),
+            "model": os.getenv(azure_api_deployment_env_name),
             "messages": [{"role": "user", "content": prompt_text}],
             "temperature": 0.0, # TODO make configurable
         },
@@ -155,13 +173,19 @@ def _simple_jsonl_format(prompt_custom_id: str, prompt_text: str, model: Optiona
     return payload
 
 
-def _image_jsonl_format(prompt_custom_id: str, encoded_image: str, prompt_text: str, model: Optional[type[BaseModel]] = None) -> dict:
+def _image_jsonl_format(
+    prompt_custom_id: str,
+    encoded_image: str,
+    prompt_text: str,
+    azure_api_deployment_env_name: str,
+    model: Optional[type[BaseModel]] = None
+) -> dict:
     payload = {
         "custom_id": prompt_custom_id,
         "method": "POST",
         "url": "/chat/completions",
         "body": {
-            "model": os.getenv("AZURE_API_DEPLOYMENT"),
+            "model": os.getenv(azure_api_deployment_env_name),
             "messages": [
                 {
                     "role": "user",
