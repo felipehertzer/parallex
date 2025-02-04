@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Python Dependencies (Poetry)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[dependabot] Backend"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 10
+    versioning-strategy: "increase-if-necessary"
