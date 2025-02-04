@@ -10,14 +10,19 @@ from parallex.utils.logger import logger
 
 # Exceptions for missing keys, etc
 class OpenAIClient:
-    def __init__(self, model: str, remote_file_handler: RemoteFileHandler):
-        self.model = model
+    def __init__(
+        self,
+        remote_file_handler: RemoteFileHandler,
+        azure_endpoint_env_name: str,
+        azure_api_key_env_name: str,
+        azure_api_version_env_name: str,
+    ):
         self.file_handler = remote_file_handler
 
         self._client = AsyncAzureOpenAI(
-            azure_endpoint=os.getenv("AZURE_API_BASE"),
-            api_key=os.getenv("AZURE_API_KEY"),
-            api_version=os.getenv("AZURE_API_VERSION"),
+            azure_endpoint=os.getenv(azure_endpoint_env_name),
+            api_key=os.getenv(azure_api_key_env_name),
+            api_version=os.getenv(azure_api_version_env_name),
         )
 
     async def upload(self, file_path: str) -> FileObject:
