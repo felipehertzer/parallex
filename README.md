@@ -1,9 +1,8 @@
-# Parallex
+# Parallex for OpenAI
 
 ### What it does
 - Converts PDF into images
-- Makes requests to Azure OpenAI to convert the images to markdown using Batch API
-  - [Azure OpenAPI Batch](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/batch?tabs=standard-input%2Cpython-secure&pivots=programming-language-python)
+- Makes requests to OpenAI to convert the images to markdown using Batch API
   - [OpenAPI Batch](https://platform.openai.com/docs/guides/batch)
 - Polls for batch completion and then converts AI responses in structured output based on the page of the corresponding PDF
 - Post batch processing to do what you wish with the resulting markdown
@@ -25,12 +24,9 @@ import os
 from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.parallex import parallex
 
-os.environ["AZURE_API_KEY"] = "key"
-os.environ["AZURE_API_BASE"] = "your-endpoint.com"
-os.environ["AZURE_API_VERSION"] = "deployment_version"
-os.environ["AZURE_API_DEPLOYMENT"] = "deployment_name"
+os.environ["OPENAI_API_KEY"] = "key"
 
-model = "gpt-4o"
+model = "gpt-4o-mini"
 
 async def some_operation(file_url: str) -> None:
   response_data: ParallexCallableOutput = await parallex(
@@ -56,7 +52,7 @@ Responses have the following structure;
 ```python
 class ParallexCallableOutput(BaseModel):
     file_name: str = Field(description="Name of file that is processed")
-    pdf_source_url: str = Field(description="Given URL of the source of output")
+    pdf_source_url: Optional[str] = Field(description="Given URL of the source of output")
     trace_id: UUID = Field(description="Unique trace for each file")
     pages: list[PageResponse] = Field(description="List of PageResponse objects")
 

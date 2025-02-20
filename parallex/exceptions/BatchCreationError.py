@@ -1,0 +1,2 @@
+class BatchCreationError(Exception):
+    pass
