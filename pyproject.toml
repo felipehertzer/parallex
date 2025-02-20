@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "parallex"
+name = "parallex-openai"
 version = "0.6.0"
 description = "PDF to markdown using OpenAI batch processing"
 authors = ["Jeff Hostetler <jeff@summed.ai>", "Kevin Bao <kevin@summed.ai>", "Felipe Hertzer <felipe@hertzer.net>"]
