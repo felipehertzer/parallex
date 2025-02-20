@@ -15,7 +15,7 @@ brew install graphicsmagick
 
 ### Installation
 ```bash
-pip install parallex
+pip install git+https://github.com/felipehertzer/parallex.git
 ```
 
 ### Example usage
