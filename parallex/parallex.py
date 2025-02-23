@@ -24,6 +24,7 @@ from parallex.file_management.converter import convert_pdf_to_images
 from parallex.file_management.file_finder import add_file_to_temp_directory
 from parallex.file_management.remote_file_handler import RemoteFileHandler
 from parallex.models.batch_file import BatchFile
+from parallex.models.page_response import PageResponse
 from parallex.models.parallex_callable_output import ParallexCallableOutput
 from parallex.models.parallex_prompts_callable_output import (
     ParallexPromptsCallableOutput,
@@ -88,8 +89,55 @@ async def parallex(
         logger.error(f"Error occurred: {e}")
         raise e
     finally:
-        if post_process_callable is not None:
-            await delete_associated_files(open_ai_client, remote_file_handler)
+        await _delete_associated_files(open_ai_client, remote_file_handler)
+
+
+async def parallex_async(
+    model_name: str,
+    pdf_source: Union[str, Path],
+    concurrency: Optional[int] = 20,
+    prompt_text: Optional[str] = DEFAULT_PROMPT,
+    log_level: Optional[str] = "ERROR",
+    response_model: Optional[type[BaseModel]] = None,
+    api_key_env_name: str = "OPENAI_API_KEY",
+    temperature: float = DEFAULT_TEMPERATURE,
+) -> ParallexCallableOutput | List[UploadBatch] | None:
+    """
+    Orchestrates the process of extracting information from a PDF document using OpenAI's API.
+
+    Args:
+        model_name: The name of the OpenAI model to use.
+        pdf_source: URL or file path to the PDF document.
+        concurrency: Maximum number of concurrent API requests.
+        prompt_text: Default prompt text to use for image processing.
+        log_level: Logging level.
+        response_model: Pydantic model for structured output.
+        api_key_env_name: The environment variable name containing the OpenAI API key.
+        temperature: The temperature to use for the OpenAI API.
+
+    Returns:
+        ParallexCallableOutput: Processed output containing extracted information.
+    """
+    setup_logger(log_level)
+    remote_file_handler = RemoteFileHandler()
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        api_key_env_name=api_key_env_name,
+    )
+    try:
+        return await _execute(
+            open_ai_client=open_ai_client,
+            pdf_source=pdf_source,
+            post_process_callable=None,
+            concurrency=concurrency,
+            prompt_text=prompt_text,
+            model_name=model_name,
+            response_model=response_model,
+            temperature=temperature,
+        )
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
+        raise e
 
 
 async def parallex_simple_prompts(
@@ -138,8 +186,52 @@ async def parallex_simple_prompts(
         logger.error(f"Error occurred: {e}")
         raise e
     finally:
-        if post_process_callable is not None:
-            await delete_associated_files(open_ai_client, remote_file_handler)
+        await _delete_associated_files(open_ai_client, remote_file_handler)
+
+
+async def parallex_simple_prompts_async(
+    model_name: str,
+    prompts: List[str],
+    log_level: Optional[str] = "ERROR",
+    concurrency: Optional[int] = 20,
+    response_model: Optional[type[BaseModel]] = None,
+    api_key_env_name: str = "OPENAI_API_KEY",
+    temperature: float = DEFAULT_TEMPERATURE,
+) -> ParallexPromptsCallableOutput | None:
+    """
+    Processes a list of prompts using OpenAI's API.
+
+    Args:
+        model_name: The name of the OpenAI model to use.
+        prompts: List of prompt strings to process.
+        log_level: Logging level.
+        concurrency: Maximum number of concurrent API requests.
+        response_model: Pydantic model for structured output.
+        api_key_env_name: The environment variable name containing the OpenAI API key.
+        temperature: The temperature to use for the OpenAI API.
+
+    Returns:
+        ParallexPromptsCallableOutput: Processed output containing responses to the prompts.
+    """
+    setup_logger(log_level)
+    remote_file_handler = RemoteFileHandler()
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        api_key_env_name=api_key_env_name,
+    )
+    try:
+        return await _prompts_execute(
+            open_ai_client=open_ai_client,
+            prompts=prompts,
+            post_process_callable=None,
+            concurrency=concurrency,
+            model_name=model_name,
+            response_model=response_model,
+            temperature=temperature,
+        )
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
+        raise e
 
 
 async def _prompts_execute(
@@ -202,7 +294,7 @@ async def _prompts_execute(
                     f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
                 )
                 prompt_task = asyncio.create_task(
-                    wait_and_create_prompt_responses(
+                    _wait_and_create_prompt_responses(
                         batch=batch,
                         client=open_ai_client,
                         semaphore=process_semaphore,
@@ -301,7 +393,7 @@ async def _execute(
             process_semaphore = asyncio.Semaphore(concurrency)
             for batch in batch_jobs:
                 page_task = asyncio.create_task(
-                    wait_and_create_pages(
+                    _wait_and_create_pages(
                         batch=batch,
                         client=open_ai_client,
                         semaphore=process_semaphore,
@@ -333,7 +425,7 @@ async def _execute(
             raise
 
 
-async def wait_and_create_pages(
+async def _wait_and_create_pages(
     batch: UploadBatch,
     client: OpenAIClient,
     semaphore: asyncio.Semaphore,
@@ -367,7 +459,7 @@ async def wait_and_create_pages(
             raise
 
 
-async def wait_and_create_prompt_responses(
+async def _wait_and_create_prompt_responses(
     batch: UploadBatch,
     client: OpenAIClient,
     semaphore: asyncio.Semaphore,
@@ -430,7 +522,7 @@ async def _create_batch_jobs(
             raise
 
 
-async def delete_associated_files(
+async def _delete_associated_files(
     open_ai_client: OpenAIClient, remote_file_handler: RemoteFileHandler
 ) -> None:
     """
@@ -448,3 +540,141 @@ async def delete_associated_files(
             logger.warning(f"API error deleting file {file}: {e}")
         except Exception as e:  # Catch other exceptions
             logger.warning(f"Failed to delete file {file}: {e}")
+
+
+async def retrieve_image_batch(
+    batch_id: str,
+    trace_id: UUID,
+    input_file_id: str,
+    output_file_id: str,
+    error_file_id: str,
+    concurrency: int = 20,
+    api_key_env_name: str = "OPENAI_API_KEY",
+    log_level: Optional[str] = "ERROR",
+    response_model: Optional[type[BaseModel]] = None,
+) -> list[PageResponse]:
+    setup_logger(log_level)
+    remote_file_handler = RemoteFileHandler()
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        api_key_env_name=api_key_env_name,
+    )
+
+    remote_file_handler.add_file(error_file_id)
+    remote_file_handler.add_file(input_file_id)
+    remote_file_handler.add_file(output_file_id)
+
+    batch_jobs = [
+        UploadBatch(
+            id=batch_id,
+            trace_id=trace_id,
+            error_file_id=error_file_id,
+            input_file_id=input_file_id,
+            output_file_id=output_file_id,
+            failed_at=None,
+            endpoint="",
+            created_at=0,
+            expired_at=None,
+            expires_at=None,
+            cancelling_at=None,
+            finalizing_at=None,
+            cancelled_at=None,
+            completed_at=None,
+            in_progress_at=None,
+            completion_window="24hrs",
+            errors=None,
+            status="",
+        )
+    ]
+
+    pages_tasks = []
+    process_semaphore = asyncio.Semaphore(concurrency)
+    for batch in batch_jobs:
+        page_task = asyncio.create_task(
+            _wait_and_create_pages(
+                batch=batch,
+                client=open_ai_client,
+                semaphore=process_semaphore,
+                response_model=response_model,
+            )
+        )
+        pages_tasks.append(page_task)
+    page_groups = await asyncio.gather(*pages_tasks)
+
+    pages = [page for batch_pages in page_groups for page in batch_pages]
+    logger.info(f"pages done. total pages- {len(pages)} - {trace_id}")
+    sorted_pages = sorted(pages, key=lambda x: x.page_number)
+
+    await _delete_associated_files(open_ai_client, remote_file_handler)
+
+    return sorted_pages
+
+
+async def retrieve_prompt_batch(
+    batch_id: str,
+    trace_id: UUID,
+    input_file_id: str,
+    output_file_id: str,
+    error_file_id: str,
+    concurrency: int = 20,
+    api_key_env_name: str = "OPENAI_API_KEY",
+    log_level: Optional[str] = "ERROR",
+    response_model: Optional[type[BaseModel]] = None,
+) -> list[BaseModel]:
+    setup_logger(log_level)
+    remote_file_handler = RemoteFileHandler()
+    open_ai_client = OpenAIClient(
+        remote_file_handler=remote_file_handler,
+        api_key_env_name=api_key_env_name,
+    )
+
+    remote_file_handler.add_file(error_file_id)
+    remote_file_handler.add_file(input_file_id)
+    remote_file_handler.add_file(output_file_id)
+
+    batch_jobs = [
+        UploadBatch(
+            id=batch_id,
+            trace_id=trace_id,
+            error_file_id=error_file_id,
+            input_file_id=input_file_id,
+            output_file_id=output_file_id,
+            failed_at=None,
+            endpoint="",
+            created_at=0,
+            expired_at=None,
+            expires_at=None,
+            cancelling_at=None,
+            finalizing_at=None,
+            cancelled_at=None,
+            completed_at=None,
+            in_progress_at=None,
+            completion_window="24hrs",
+            errors=None,
+            status="",
+        )
+    ]
+
+    prompt_tasks = []
+    process_semaphore = asyncio.Semaphore(concurrency)
+    for batch in batch_jobs:
+        prompt_task = asyncio.create_task(
+            _wait_and_create_prompt_responses(
+                batch=batch,
+                client=open_ai_client,
+                semaphore=process_semaphore,
+                response_model=response_model,
+            )
+        )
+        prompt_tasks.append(prompt_task)
+    prompt_response_groups = await asyncio.gather(*prompt_tasks)
+
+    flat_responses = [
+        response for batch in prompt_response_groups for response in batch
+    ]
+
+    sorted_responses = sorted(flat_responses, key=lambda x: x.prompt_index)
+
+    await _delete_associated_files(open_ai_client, remote_file_handler)
+
+    return sorted_responses
