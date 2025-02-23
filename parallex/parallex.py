@@ -89,7 +89,7 @@ async def parallex(
         raise e
     finally:
         if post_process_callable is not None:
-            await _delete_associated_files(open_ai_client, remote_file_handler)
+            await delete_associated_files(open_ai_client, remote_file_handler)
 
 
 async def parallex_simple_prompts(
@@ -139,7 +139,7 @@ async def parallex_simple_prompts(
         raise e
     finally:
         if post_process_callable is not None:
-            await _delete_associated_files(open_ai_client, remote_file_handler)
+            await delete_associated_files(open_ai_client, remote_file_handler)
 
 
 async def _prompts_execute(
@@ -430,7 +430,7 @@ async def _create_batch_jobs(
             raise
 
 
-async def _delete_associated_files(
+async def delete_associated_files(
     open_ai_client: OpenAIClient, remote_file_handler: RemoteFileHandler
 ) -> None:
     """
