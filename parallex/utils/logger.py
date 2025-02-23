@@ -5,7 +5,7 @@ from aiologger.loggers.json import JsonLogger
 logger = JsonLogger.with_default_handlers(name="parallex")
 
 
-def setup_logger(level: str = "ERROR"):
+def setup_logger(level: str = "ERROR") -> None:
     level = {
         "CRITICAL": logging.CRITICAL,
         "ERROR": logging.ERROR,

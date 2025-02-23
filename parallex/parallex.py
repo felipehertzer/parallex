@@ -88,7 +88,8 @@ async def parallex(
         logger.error(f"Error occurred: {e}")
         raise e
     finally:
-        await _delete_associated_files(open_ai_client, remote_file_handler)
+        if post_process_callable is not None:
+            await _delete_associated_files(open_ai_client, remote_file_handler)
 
 
 async def parallex_simple_prompts(
@@ -137,7 +138,8 @@ async def parallex_simple_prompts(
         logger.error(f"Error occurred: {e}")
         raise e
     finally:
-        await _delete_associated_files(open_ai_client, remote_file_handler)
+        if post_process_callable is not None:
+            await _delete_associated_files(open_ai_client, remote_file_handler)
 
 
 async def _prompts_execute(
@@ -148,7 +150,7 @@ async def _prompts_execute(
     concurrency: Optional[int] = 20,
     response_model: Optional[type[BaseModel]] = None,
     temperature: float = DEFAULT_TEMPERATURE,
-):
+) -> ParallexPromptsCallableOutput | List[UploadBatch] | None:
     """
     Executes the prompt processing workflow.
 
@@ -190,6 +192,9 @@ async def _prompts_execute(
                 start_batch_tasks.append(batch_task)
             batch_jobs = await asyncio.gather(*start_batch_tasks)
 
+            if post_process_callable is None:
+                return batch_jobs
+
             process_semaphore = asyncio.Semaphore(concurrency)
             prompt_tasks = []
             for batch in batch_jobs:
@@ -197,7 +202,7 @@ async def _prompts_execute(
                     f"waiting for batch to complete - {batch.id} - {batch.trace_id}"
                 )
                 prompt_task = asyncio.create_task(
-                    _wait_and_create_prompt_responses(
+                    wait_and_create_prompt_responses(
                         batch=batch,
                         client=open_ai_client,
                         semaphore=process_semaphore,
@@ -212,13 +217,15 @@ async def _prompts_execute(
             ]
 
             sorted_responses = sorted(flat_responses, key=lambda x: x.prompt_index)
+
             callable_output = ParallexPromptsCallableOutput(
                 original_prompts=prompts,
                 trace_id=trace_id,
                 responses=sorted_responses,
             )
-            if post_process_callable is not None:
-                post_process_callable(output=callable_output)
+
+            post_process_callable(output=callable_output)
+
             return callable_output
         except (BatchCreationError, BatchProcessingError, APIError) as e:
             logger.error(f"Error during prompt processing: {e}")
@@ -237,7 +244,7 @@ async def _execute(
     prompt_text: Optional[str] = DEFAULT_PROMPT,
     response_model: Optional[type[BaseModel]] = None,
     temperature: float = DEFAULT_TEMPERATURE,
-) -> ParallexCallableOutput | None:
+) -> ParallexCallableOutput | List[UploadBatch] | None:
     """
     Executes the core workflow of extracting information from a PDF document.
 
@@ -287,11 +294,14 @@ async def _execute(
                 start_batch_tasks.append(batch_task)
             batch_jobs = await asyncio.gather(*start_batch_tasks)
 
+            if post_process_callable is None:
+                return batch_jobs
+
             pages_tasks = []
             process_semaphore = asyncio.Semaphore(concurrency)
             for batch in batch_jobs:
                 page_task = asyncio.create_task(
-                    _wait_and_create_pages(
+                    wait_and_create_pages(
                         batch=batch,
                         client=open_ai_client,
                         semaphore=process_semaphore,
@@ -311,8 +321,9 @@ async def _execute(
                 trace_id=trace_id,
                 pages=sorted_pages,
             )
-            if post_process_callable is not None:
-                post_process_callable(output=callable_output)
+
+            post_process_callable(output=callable_output)
+
             return callable_output
         except (BatchCreationError, BatchProcessingError, APIError) as e:
             logger.error(f"Error during PDF processing: {e}")
@@ -322,12 +333,12 @@ async def _execute(
             raise
 
 
-async def _wait_and_create_pages(
+async def wait_and_create_pages(
     batch: UploadBatch,
     client: OpenAIClient,
     semaphore: asyncio.Semaphore,
     response_model: Optional[type[BaseModel]] = None,
-):
+) -> List[BaseModel]:
     """
     Waits for a batch to complete and processes the output to create page responses.
 
@@ -356,12 +367,12 @@ async def _wait_and_create_pages(
             raise
 
 
-async def _wait_and_create_prompt_responses(
+async def wait_and_create_prompt_responses(
     batch: UploadBatch,
     client: OpenAIClient,
     semaphore: asyncio.Semaphore,
     response_model: Optional[type[BaseModel]] = None,
-):
+) -> List[BaseModel]:
     """
     Waits for a batch to complete and processes the output to create prompt responses.
 
@@ -395,7 +406,7 @@ async def _create_batch_jobs(
     client: OpenAIClient,
     trace_id: UUID,
     semaphore: asyncio.Semaphore,
-):
+) -> UploadBatch:
     """
     Creates a batch processing job.
 
@@ -421,7 +432,7 @@ async def _create_batch_jobs(
 
 async def _delete_associated_files(
     open_ai_client: OpenAIClient, remote_file_handler: RemoteFileHandler
-):
+) -> None:
     """
     Deletes associated files from OpenAI.
 
