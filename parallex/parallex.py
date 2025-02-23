@@ -49,7 +49,7 @@ async def parallex(
     response_model: Optional[type[BaseModel]] = None,
     api_key_env_name: str = "OPENAI_API_KEY",
     temperature: float = DEFAULT_TEMPERATURE,
-) -> ParallexCallableOutput | None:
+) -> ParallexCallableOutput | List[UploadBatch] | None:
     """
     Orchestrates the process of extracting information from a PDF document using OpenAI's API.
 
